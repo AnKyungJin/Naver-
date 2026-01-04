@@ -1,13 +1,5 @@
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenAI, Type, Modality } from "@google/genai";
 import { ColorTheme, GeneratedContent, SupplementaryInfo } from '../types';
-
-const API_KEY = process.env.API_KEY;
-
-if (!API_KEY) {
-  throw new Error("API_KEY environment variable is not set.");
-}
-
-const ai = new GoogleGenAI({ apiKey: API_KEY });
 
 const HUMAN_LIKE_WRITING_INSTRUCTIONS_A = `
 ### **중요**: 인간과 구별 불가능한 자연스러운 글쓰기 지침 (A형)
@@ -43,12 +35,6 @@ const HUMAN_LIKE_WRITING_INSTRUCTIONS_A = `
 #### 📝 6단계: 개성과 관점 드러내기
 - **개인적 시각 표현**: “제가 직접 써보니”, “개인적으로는”, “제 생각에는”, “솔직히 놀랐다” 와 같이 자신의 경험, 가치관, 감정적 반응을 적극적으로 드러냅니다.
 - **독자와의 소통**: "여러분도 아마 비슷한 경험이 있을 것이다. 혹시 그런 적 없나?" 처럼 독자에게 질문을 던지거나 말을 거는 듯한 표현을 사용합니다.
-
-#### ⚠️ 주의사항: 피해야 할 AI적 특징
-- 지나치게 완벽한 문법과 예측 가능한 문장 구조
-- 감정 없는 객관적 서술
-- 천편일률적인 전환 표현
-- 인간적인 실수나 망설임의 완전한 부재
 `;
 
 const HUMAN_LIKE_WRITING_INSTRUCTIONS_B = `
@@ -255,7 +241,6 @@ ${additionalRequest}
     - **서브 이미지**: **반드시** 본문 내용의 흐름상 적절한 위치 2~3곳에 \`<!--SUB_IMAGE_PLACEHOLDER_1-->\`, \`<!--SUB_IMAGE_PLACEHOLDER_2-->\` 와 같은 HTML 주석을 삽입해주세요. 이 주석들은 서브 이미지가 들어갈 자리를 표시하며, 숫자는 순서대로 증가해야 합니다. 각 플레이스홀더에 대해, 이미지를 생성할 상세한 영문 프롬프트와 SEO 및 접근성을 위한 간결하고 설명적인 한국어 alt 텍스트를 모두 생성하여 \`subImagePrompts\` 배열에 객체 형태로 순서대로 담아주세요.
   `;
 
-  // This is the user's detailed guide.
   const instructions = `
     ### 기본 설정
     1.  **최종 산출물**: 인라인 스타일이 적용된 HTML 코드(HEAD, BODY 태그 제외)와 부가 정보(키워드, 이미지 프롬프트, SEO 제목), 그리고 소셜 미디어 포스트를 JSON 형식으로 제공합니다.
@@ -378,7 +363,7 @@ const getRegenerationPrompt = (originalHtml: string, feedback: string, theme: Co
 export const generateImage = async (prompt: string, aspectRatio: '16:9' | '1:1' = '16:9'): Promise<string | null> => {
     try {
         if (!prompt) return null;
-
+        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
         const imageResponse = await ai.models.generateImages({
             model: 'imagen-4.0-generate-001',
             prompt: prompt,
@@ -405,6 +390,7 @@ export const generateImage = async (prompt: string, aspectRatio: '16:9' | '1:1' 
 
 export const generateBlogPost = async (topic: string, theme: ColorTheme, shouldGenerateImage: boolean, shouldGenerateSubImages: boolean, interactiveElementIdea: string | null, rawContent: string | null, humanLikeWritingStyle: 'A' | 'B' | null, additionalRequest: string | null, aspectRatio: '16:9' | '1:1', currentDate: string): Promise<GeneratedContent> => {
   try {
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const prompt = getPrompt(topic, theme, interactiveElementIdea, rawContent, humanLikeWritingStyle, additionalRequest, currentDate);
     const contentResponse = await ai.models.generateContent({
         model: "gemini-2.5-flash",
@@ -473,6 +459,7 @@ export const generateBlogPost = async (topic: string, theme: ColorTheme, shouldG
 
 export const regenerateBlogPostHtml = async (originalHtml: string, feedback: string, theme: ColorTheme, currentDate: string): Promise<string> => {
     try {
+        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
         const prompt = getRegenerationPrompt(originalHtml, feedback, theme, currentDate);
         const contentResponse = await ai.models.generateContent({
             model: "gemini-2.5-flash",
@@ -515,6 +502,7 @@ const topicSuggestionSchema = {
 
 const generateTopics = async (prompt: string, useSearch: boolean = false): Promise<string[]> => {
     try {
+        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
         const config: {
             responseMimeType?: "application/json",
             responseSchema?: typeof topicSuggestionSchema,
@@ -541,10 +529,7 @@ const generateTopics = async (prompt: string, useSearch: boolean = false): Promi
 
         if (useSearch) {
             const text = response.text;
-            // When using googleSearch, the output is not guaranteed to be JSON.
-            // We'll parse it as a simple newline-separated list.
             let lines = text.split('\n').map(topic => topic.trim()).filter(Boolean);
-            // Heuristically remove a potential introductory sentence.
             if (lines.length > 1 && (lines[0].includes('다음은') || lines[0].endsWith('입니다.') || lines[0].endsWith('입니다:'))) {
                 lines.shift();
             }
@@ -654,6 +639,7 @@ export const suggestInteractiveElementForTopic = async (topic: string): Promise<
     `;
 
     try {
+        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
         const response = await ai.models.generateContent({
             model: "gemini-2.5-flash",
             contents: prompt,
